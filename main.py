@@ -16,6 +16,7 @@ def read_item(nome: str):
     return {"mensagem": f"Olá, {nome}! Bem-vindo à API."}
 '''
 #############################################################################################
+# https://youtu.be/nPUA8BLWzeY?si=O_c-PHdww0Z3B8yf
 
 #Endpoints para:
     #Criar usuário
