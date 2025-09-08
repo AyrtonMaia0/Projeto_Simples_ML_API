@@ -23,58 +23,78 @@
 #############################################################################################
 
 
-from fastapi import FastAPI, HTTPException
-from models import Usuario  # importa a classe do outro arquivo
+from fastapi import FastAPI, Depends, HTTPException
+from models import Base, Usuario, UsuarioDB # importa a classe do outro arquivo
+from database import SessionLocal, engine
+from sqlalchemy.orm import Session
+
+# Cria tabelas no banco se não existirem
+Base.metadata.create_all(bind=engine)
 
 # Inicializa Aplicação
 app = FastAPI()
 
-
 # "Banco de dados" em memória (lista de usuários)
-usuarios_db = []
+#usuarios_db = []
+
+# Dependência para obter sessão do banco
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 # ------------------ Rotas ------------------
 
-# CREATE - Criar Novo Usuário
+# CREATE
 @app.post("/user_create/")
-def criar_usuario(usuario: Usuario):
-    # Verifica se o ID já existe
-    for u in usuarios_db:
-        if u.id == usuario.id:
-            raise HTTPException(status_code=400, detail="ID já cadastrado")
-    usuarios_db.append(usuario)
+def criar_usuario(usuario: Usuario, db: Session = Depends(get_db)):
+    db_usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario.id).first()
+    if db_usuario:
+        raise HTTPException(status_code=400, detail="ID já cadastrado")
+    novo_usuario = UsuarioDB(**usuario.dict())
+    db.add(novo_usuario)
+    db.commit()
+    db.refresh(novo_usuario)
     return {"mensagem": "Usuário criado com sucesso!", "usuario": usuario}
 
 
-# READ - Listar Todos Usuários
+
+# READ ALL
 @app.get("/user_read/")
-def listar_usuarios():
-    return {"usuarios": usuarios_db}
+def listar_usuarios(db: Session = Depends(get_db)):
+    usuarios = db.query(UsuarioDB).all()
+    return {"usuarios": usuarios}
 
-# READ - Consultar Usuário por ID
+# READ ID
 @app.get("/user_id/{usuario_id}")
-def consultar_usuario(usuario_id: int):
-    for usuario in usuarios_db:
-        if usuario.id == usuario_id:
-            return usuario
+def consultar_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if usuario:
+        return usuario
     raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
 
-# UPDATE - Atualizar Usuário por ID | PUT
+# UPDATE
 @app.put("/user_update/{usuario_id}")
-def atualizar_usuario(usuario_id: int, usuario_atualizado: Usuario):
-    for index, usuario in enumerate(usuarios_db):
-        if usuario.id == usuario_id:
-            usuarios_db[index] = usuario_atualizado
-            return {"mensagem": "Usuário atualizado com sucesso!", "usuario": usuario_atualizado}
+def atualizar_usuario(usuario_id: int, usuario_atualizado: Usuario, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if usuario:
+        usuario.nome = usuario_atualizado.nome
+        usuario.email = usuario_atualizado.email
+        db.commit()
+        return {"mensagem": "Usuário atualizado com sucesso!", "usuario": usuario_atualizado}
     raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
 
-# DELETE - Remover Usuário por ID
+# DELETE
 @app.delete("/user_delete/{usuario_id}")
-def deletar_usuario(usuario_id: int):
-    for index, usuario in enumerate(usuarios_db):
-        if usuario.id == usuario_id:
-            usuarios_db.pop(index)
-            return {"mensagem": f"Usuário com ID {usuario_id} deletado com sucesso!"}
+def deletar_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if usuario:
+        db.delete(usuario)
+        db.commit()
+        return {"mensagem": f"Usuário com ID {usuario_id} deletado com sucesso!"}
     raise HTTPException(status_code=404, detail="Usuário não encontrado")
