@@ -18,7 +18,8 @@
 # 3.2 | curl -X POST "http://127.0.0.1:8000/usuarios/" -H "Content-Type: application/json" -d "{\"id\":1,\"nome\":\"User\",\"email\":\"user@example.com\"}"
 
 # 4   | pip install sqlalchemy psycopg2
-# 
+# 5   | pip install python-dotenv
+
 
 #############################################################################################
 
